@@ -1,0 +1,29 @@
+# pnpm 11 reads pnpm-specific settings from pnpm-workspace.yaml. Important:
+# unlike npm, pnpm does NOT forward arbitrary keys to lifecycle scripts as
+# `npm_config_*` env vars. So `electron_mirror` / `electron_builder_binaries_mirror`
+# have NO effect here (nor in .npmrc). Configure the Electron download mirror via
+# real environment variables instead -- @electron/get and electron-builder read
+# them directly from process.env:
+#   ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/
+#   ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/
+
+# electron-forge + electron-rebuild require a hoisted node_modules layout.
+nodeLinker: hoisted
+
+# The npm registry mirror. Unlike the Electron binary mirror above, `registry`
+# IS a real pnpm setting and takes effect for package resolution.
+registry: https://registry.npmmirror.com
+
+# @electron/rebuild (a transitive dep of electron-forge) pulls in
+# @electron/node-gyp, which resolves from a git repo. pnpm blocks exotic
+# subdeps by default; allow them here.
+blockExoticSubdeps: false
+
+# Native modules used by the forge makers (dmg/squirrel) need their build
+# scripts to run. pnpm 11 gates builds behind an allowBuilds map
+# (package name -> true). This replaces the old onlyBuiltDependencies array.
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  fs-xattr: true
+  macos-alias: true
