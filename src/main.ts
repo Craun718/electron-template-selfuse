@@ -1,7 +1,16 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
+import contextMenu from 'electron-context-menu';
+import { createIPCHandler } from 'electron-trpc/main';
+import log from './lib/logger';
+import { initDatabase } from './lib/db';
+import { store } from './lib/store';
+import { appRouter } from './trpc/router';
 
-function createWindow(): void {
+declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
+declare const MAIN_WINDOW_VITE_NAME: string;
+
+function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -21,32 +30,33 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
-  // MAIN_WINDOW_VITE_DEV_SERVER_URL is injected at build time by
-  // @electron-forge/plugin-vite. It is the dev server URL in dev mode,
-  // and undefined in a packaged build.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     void win.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
     win.webContents.openDevTools();
   } else {
     void win.loadFile(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
+
+  return win;
 }
 
 app.whenReady().then(() => {
-  ipcMain.handle('app:get-info', () => ({
-    name: app.getName(),
-    version: app.getVersion(),
-    electron: process.versions.electron ?? '',
-    chrome: process.versions.chrome ?? '',
-    node: process.versions.node ?? '',
-    platform: process.platform,
-    arch: process.arch,
-  }));
+  log.info('starting', app.getName(), app.getVersion());
 
-  createWindow();
+  contextMenu();
+  initDatabase();
+  store.set('lastOpenedAt', new Date().toISOString());
+
+  // One IPC handler for all windows; attach each window so its subscriptions
+  // are cleaned up on navigation/destroy.
+  const handler = createIPCHandler({ router: appRouter });
+  const openWindow = (): void => {
+    handler.attachWindow(createWindow());
+  };
+  openWindow();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) openWindow();
   });
 });
 

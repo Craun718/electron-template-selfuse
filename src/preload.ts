@@ -1,10 +1,5 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { exposeElectronTRPC } from 'electron-trpc/main';
 
-const api = {
-  getInfo: () => ipcRenderer.invoke('app:get-info'),
-} as const;
-
-// contextIsolation is on (Electron default), so always use the bridge.
-contextBridge.exposeInMainWorld('api', api);
-
-export type Api = typeof api;
+// Exposes `window.electronTRPC`, the bridge the renderer's `ipcLink()` reads.
+// contextIsolation stays on; the renderer never touches ipcRenderer directly.
+exposeElectronTRPC();

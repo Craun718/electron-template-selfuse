@@ -8,6 +8,39 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import type { FuseConfig } from '@electron/fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import { cp } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Packages Vite cannot inline (see vite.main.config.ts `external`). We must
+// ship these — and their full transitive runtime dependency tree — inside the
+// packaged app's node_modules so the runtime requires resolve. The closure is
+// computed automatically so it stays correct when versions are bumped.
+const moduleRequire = createRequire(import.meta.url);
+function dependencyClosure(roots: string[]): Set<string> {
+  const seen = new Set<string>();
+  const queue = [...roots];
+  while (queue.length > 0) {
+    const name = queue.pop()!;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    let pkg: { dependencies?: Record<string, string> };
+    try {
+      pkg = moduleRequire(moduleRequire.resolve(`${name}/package.json`));
+    } catch {
+      continue;
+    }
+    for (const dep of Object.keys(pkg.dependencies ?? {})) {
+      if (!seen.has(dep)) queue.push(dep);
+    }
+  }
+  return seen;
+}
+
+// Roots that are externalized in the Vite main build.
+const externalPackages = dependencyClosure(['better-sqlite3', 'ajv', 'ajv-formats']);
+const projectRoot = dirname(fileURLToPath(import.meta.url));
 
 const fuses: FuseConfig = {
   version: FuseVersion.V1,
@@ -21,14 +54,35 @@ const fuses: FuseConfig = {
 const config: ForgeConfig = {
   packagerConfig: {
     executableName: 'electron-template',
-    asar: true,
+    // Vite bundles main/preload/renderer; only native modules and ajv (whose
+    // `exports` field blocks the subpaths rollup needs) stay external. Those
+    // plus their transitive deps are copied in by the packageAfterCopy hook,
+    // keeping the package lean. Unpack native .node from the asar to load it.
+    asar: {
+      unpack: '**/*.node',
+    },
+  },
+  hooks: {
+    // After electron-packager copies the staged `.vite/` output (and before it
+    // builds the asar), inject only the externalized native + ajv closure so
+    // their runtime requires resolve. Everything else is already inlined by
+    // Vite, so this stays minimal.
+    packageAfterCopy: async (_forgeConfig, buildPath) => {
+      for (const pkg of externalPackages) {
+        await cp(
+          join(projectRoot, 'node_modules', pkg),
+          join(buildPath, 'node_modules', pkg),
+          { recursive: true },
+        );
+      }
+    },
   },
   makers: [
-    new MakerSquirrel(),
+    new MakerSquirrel({}, ['win32']),
     new MakerDMG({}, ['darwin']),
     new MakerZIP({}, ['darwin', 'linux']),
-    new MakerRpm({ options: {} }),
-    new MakerDeb({ options: {} }),
+    new MakerDeb({ options: {} }, ['linux']),
+    new MakerRpm({ options: {} }, ['linux']),
   ],
   plugins: [
     new VitePlugin({

@@ -24,6 +24,8 @@ blockExoticSubdeps: false
 # (package name -> true). This replaces the old onlyBuiltDependencies array.
 allowBuilds:
   electron: true
+  better-sqlite3: true
+  esbuild: true
   electron-winstaller: true
   fs-xattr: true
   macos-alias: true

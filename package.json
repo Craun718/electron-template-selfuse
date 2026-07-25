@@ -2,7 +2,7 @@
   "name": "electron-template",
   "productName": "Electron Template",
   "version": "0.1.0",
-  "description": "Electron + Vite 8 + Vue 3 + electron-forge starter",
+  "description": "Electron + Vite 8 + React 19 + electron-forge starter",
   "license": "MIT",
   "private": true,
   "main": ".vite/build/main.js",
@@ -10,13 +10,27 @@
     "node": "^22.0.0"
   },
   "scripts": {
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "rebuild": "electron-rebuild -f",
     "start": "electron-forge start",
     "package": "electron-forge package",
+    "build": "node scripts/build.mjs",
     "make": "electron-forge make",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "vue": "^3.5.40"
+    "@trpc/client": "^10.45.4",
+    "@trpc/server": "^10.45.4",
+    "better-sqlite3": "^13.0.1",
+    "drizzle-orm": "^0.45.2",
+    "electron-context-menu": "^4.1.2",
+    "electron-log": "^5.4.4",
+    "electron-store": "^11.0.2",
+    "electron-trpc": "^0.7.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.2",
@@ -29,11 +43,15 @@
     "@electron-forge/plugin-vite": "^7.11.2",
     "@electron-forge/shared-types": "^7.11.2",
     "@electron/fuses": "^2.1.3",
+    "@electron/rebuild": "^4.2.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.1.1",
-    "@vitejs/plugin-vue": "^6.0.8",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "drizzle-kit": "^0.31.10",
     "electron": "^43.2.0",
     "typescript": "^6.0.3",
-    "vite": "^8.1.5",
-    "vue-tsc": "^3.3.8"
+    "vite": "^8.1.5"
   }
 }
