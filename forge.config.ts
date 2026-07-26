@@ -1,8 +1,5 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
-import { MakerDeb } from '@electron-forge/maker-deb';
-import { MakerRpm } from '@electron-forge/maker-rpm';
 import { MakerDMG } from '@electron-forge/maker-dmg';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -62,6 +59,20 @@ const config: ForgeConfig = {
       unpack: '**/*.node',
     },
   },
+  // better-sqlite3 ships prebuilt `.node` binaries for every target (see
+  // `prebuilds/<platform>-<arch>.node`), and its `binding.js` loads those
+  // prebuilds *before* ever falling back to a node-gyp-compiled
+  // `build/Release/better_sqlite3.node`. The packageAfterCopy hook already
+  // copies that whole tree into the staged app. So electron-forge's
+  // "Preparing native dependencies" rebuild is pure overhead here — and when
+  // cross-packaging (e.g. win32-x64 from macOS) it actually hangs/fails,
+  // because @electron/rebuild tries to compile better-sqlite3 from source for
+  // the target with no matching native toolchain. Skipping it (empty
+  // onlyModules list matches no modules) keeps packaging fast and lets the
+  // prebuild load at runtime.
+  rebuildConfig: {
+    onlyModules: [],
+  },
   hooks: {
     // After electron-packager copies the staged `.vite/` output (and before it
     // builds the asar), inject only the externalized native + ajv closure so
@@ -78,11 +89,15 @@ const config: ForgeConfig = {
     },
   },
   makers: [
-    new MakerSquirrel({}, ['win32']),
+    // Portable ZIP works on any host and produces a runnable app for every
+    // target. Platform-specific installers need host tooling that is not
+    // available when cross-building on macOS:
+    //   - MakerSquirrel (Windows .exe): requires Mono + Wine on non-Windows
+    //   - MakerDeb / MakerRpm (Linux): need a real Linux dpkg/rpmbuild setup
+    // Re-add them with `import { MakerSquirrel } from '@electron-forge/maker-squirrel'`
+    // (and the deb/rpm equivalents) plus the matching tools when you need them.
+    new MakerZIP({}, ['win32', 'darwin', 'linux']),
     new MakerDMG({}, ['darwin']),
-    new MakerZIP({}, ['darwin', 'linux']),
-    new MakerDeb({ options: {} }, ['linux']),
-    new MakerRpm({ options: {} }, ['linux']),
   ],
   plugins: [
     new VitePlugin({
