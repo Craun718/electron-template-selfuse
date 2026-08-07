@@ -1,0 +1,64 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-x64
+            os: windows-latest
+            platform: win32
+            arch: x64
+          - target: macos-arm64
+            os: macos-14
+            platform: darwin
+            arch: arm64
+          - target: linux-arm64
+            os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+          - target: linux-x64
+            os: ubuntu-latest
+            platform: linux
+            arch: x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build ${{ matrix.target }}
+        run: pnpm exec electron-forge make --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
+
+      - name: Upload ${{ matrix.target }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-template-${{ matrix.target }}
+          path: out/make/**
+          if-no-files-found: error
