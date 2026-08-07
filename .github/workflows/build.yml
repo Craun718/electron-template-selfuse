@@ -37,15 +37,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -57,7 +57,7 @@ jobs:
         run: pnpm exec electron-forge make --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
 
       - name: Upload ${{ matrix.target }} artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: electron-template-${{ matrix.target }}
           path: out/make/**
